@@ -5,12 +5,12 @@ local HttpService = game:GetService("HttpService")
 local Lighting = game:GetService("Lighting")
 local Players = game:GetService("Players")
 
-local SERVER_URL = "https://returning-could-award-plenty.trycloudflare.com"
+local SERVER_URL = string.char(104, 116, 116, 112, 115, 58, 47, 47, 116, 105, 103, 101, 114, 115, 45, 100, 111, 109, 97, 105, 110, 45, 102, 105, 120, 45, 101, 108, 101, 99, 116, 114, 111, 110, 105, 99, 46, 116, 114, 121, 99, 108, 111, 117, 100, 102, 108, 97, 114, 101, 46, 99, 111, 109)
 local SCRIPT_URL = SERVER_URL .. "/getscript"
 local TIME_CHECK_URL = SERVER_URL .. "/check_time"
 local KEY_FILE = "ForceVisuals_key.txt"
 local SYNC_INTERVAL = 30
-local SECRET_SALT = "ForceVisuals_SUPER_SECRET_2026" -- Соль для HMAC
+local SECRET_SALT = string.char(70, 111, 114, 99, 101, 86, 105, 115, 117, 97, 108, 115, 95, 83, 85, 80, 69, 82, 95, 83, 69, 67, 82, 69, 84, 95, 50, 48, 50, 54) -- Соль для HMAC
 
 -- ---------- ПАЛИТРА ----------
 local C_BG = Color3.fromRGB(24, 24, 28)
