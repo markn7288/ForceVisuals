@@ -5,12 +5,14 @@ local HttpService = game:GetService("HttpService")
 local Lighting = game:GetService("Lighting")
 local Players = game:GetService("Players")
 
-local SERVER_URL = "https://returning-could-award-plenty.trycloudflare.com"
+-- Эти строки будут заменены app.py на string.char(...)
+local SERVER_URL = "https://proceed-equal-assure-resulted.trycloudflare.com"
+local SECRET_SALT = "ForceVisuals_SUPER_SECRET_2026"
+
 local SCRIPT_URL = SERVER_URL .. "/getscript"
 local TIME_CHECK_URL = SERVER_URL .. "/check_time"
 local KEY_FILE = "ForceVisuals_key.txt"
 local SYNC_INTERVAL = 30
-local SECRET_SALT = "ForceVisuals_SUPER_SECRET_2026" -- Соль для HMAC
 
 -- ---------- ПАЛИТРА ----------
 local C_BG = Color3.fromRGB(24, 24, 28)
@@ -35,7 +37,7 @@ local function addCorner(obj, r) return create("UICorner", { CornerRadius = UDim
 local function addStroke(obj, c, t, th) return create("UIStroke", { Color = c, Transparency = t, Thickness = th or 1 }, obj) end
 local function makeLabel(p, text, f, s, c, a) return create("TextLabel", { BackgroundTransparency = 1, Font = f, TextSize = s, TextColor3 = c, TextXAlignment = a or Enum.TextXAlignment.Left, Text = text }, p) end
 
--- HMAC ФУНКЦИЯ (зависит от экзекьютора)
+-- HMAC ФУНКЦИЯ
 local function generateHMAC(message, secret)
     if syn and syn.crypt and syn.crypt.hash then
         return syn.crypt.hash(message, "sha256", secret) 
@@ -47,7 +49,7 @@ local function generateHMAC(message, secret)
     return nil
 end
 
--- ---------- HTTP ЗАПРОС ----------
+-- HTTP ЗАПРОС
 local function makeRequest(url, bodyTable)
     local requestData = {
         Url = url,
@@ -139,98 +141,9 @@ end
 closeButton.MouseButton1Click:Connect(closeInstaller)
 escConnection = UserInputService.InputBegan:Connect(function(i, p) if not p and i.KeyCode == Enum.KeyCode.Escape then closeInstaller() end end)
 
--- ---------- ТАЙМЕР ----------
+-- ТАЙМЕР
 local function startCountdownTimer(initSec, key)
     local timerGui = create("ScreenGui", { Name = "ForceTimerGui", ResetOnSpawn = false, DisplayOrder = 999 }, guiParent)
     local pill = create("Frame", { AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -20, 1, -20), Size = UDim2.fromOffset(208, 40), BackgroundColor3 = C_BG, BackgroundTransparency = 0.18 }, timerGui)
     addCorner(pill, 10); addStroke(pill, C_WHITE, 0.88, 1)
-    local dot = create("Frame", { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 14, 0.5, -3), Size = UDim2.fromOffset(8, 8), BackgroundColor3 = C_SUCCESS }, pill); addCorner(dot, 4)
-    local caption = makeLabel(pill, "Force Time", Enum.Font.Gotham, 12, C_TEXT3); caption.AnchorPoint = Vector2.new(0, 0.5); caption.Position = UDim2.new(0, 30, 0.5, -3); caption.Size = UDim2.fromOffset(70, 16)
-    local timeLabel = makeLabel(pill, "--:--:--", Enum.Font.GothamBold, 14, C_TEXT, Enum.TextXAlignment.Right); timeLabel.AnchorPoint = Vector2.new(1, 0.5); timeLabel.Position = UDim2.new(1, -14, 0.5, -3); timeLabel.Size = UDim2.new(1, -110, 0, 18)
-    local track = create("Frame", { AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -6), Size = UDim2.new(1, -28, 0, 2), BackgroundColor3 = C_WHITE, BackgroundTransparency = 0.88 }, pill); addCorner(track, 1)
-    local fill = create("Frame", { Size = UDim2.fromScale(1, 1), BackgroundColor3 = C_SUCCESS }, track); addCorner(fill, 1)
-
-    local deadline = tick() + initSec
-    local maxSec = math.max(initSec, 1)
-    local lastSync = tick()
-    local syncing = false
-    local ended = nil
-
-    local function paint(c) dot.BackgroundColor3 = c; fill.BackgroundColor3 = c end
-    local function sync()
-        if syncing then return end
-        syncing = true
-        task.spawn(function()
-            local ok, resp = pcall(makeRequest, TIME_CHECK_URL, { key = key })
-            if ok and resp and (resp.StatusCode == 200 or resp.Status == 200) then
-                local dOk, data = pcall(function() return HttpService:JSONDecode(resp.Body or "") end)
-                if dOk and type(data) == "table" then
-                    if not data.valid then ended = tostring(data.message or "Недействителен")
-                    elseif type(data.seconds_left) == "number" then deadline = tick() + data.seconds_left; maxSec = math.max(maxSec, data.seconds_left) end
-                end
-            end
-            syncing = false
-        end)
-    end
-
-    task.spawn(function()
-        while timerGui.Parent do
-            if ended then
-                timeLabel.Text = "00:00:00"; caption.Text = ended; caption.Size = UDim2.fromOffset(110, 16); timeLabel.Visible = false; paint(C_ERROR); fill.Size = UDim2.fromScale(0, 1); return
-            end
-            local left = deadline - tick()
-            if left <= 0 then
-                timeLabel.Text = "00:00:00"; caption.Text = "Время вышло"; caption.Size = UDim2.fromOffset(110, 16); timeLabel.Visible = false; paint(C_ERROR); fill.Size = UDim2.fromScale(0, 1); return
-            end
-            local total = math.floor(left)
-            timeLabel.Text = string.format("%02d:%02d:%02d", math.floor(total / 3600), math.floor((total % 3600) / 60), total % 60)
-            fill.Size = UDim2.fromScale(math.clamp(left / maxSec, 0, 1), 1)
-            paint(left > 3600 and C_SUCCESS or C_WARN)
-            if tick() - lastSync >= SYNC_INTERVAL then lastSync = tick(); sync() end
-            task.wait(0.25)
-        end
-    end)
-end
-
--- ---------- ОТПРАВКА ----------
-local busy = false
-local function submit()
-    if busy then return end
-    local key = (input.Text or ""):gsub("%s+", "")
-    if key == "" then setStatus("Введите ключ.", C_ERROR); return end
-    busy = true; setBusy(true, "Проверка..."); setStatus("Подключение...", C_TEXT3)
-    local function fail(msg, btnText) setStatus(msg, C_ERROR); setBusy(false, btnText or "Запустить"); busy = false end
-
-    task.spawn(function()
-        local timestamp = tostring(os.time())
-        local message = key .. timestamp .. SECRET_SALT
-        local signature = generateHMAC(message, SECRET_SALT)
-        
-        if not signature then
-            return fail("Экзекьютор не поддерживает HMAC.", "Ошибка")
-        end
-
-        local success, response = pcall(makeRequest, SCRIPT_URL, { key = key, timestamp = tonumber(timestamp), signature = signature })
-        if not success or not response then return fail("Ошибка сети.", "Попробовать снова") end
-        local statusCode = response.StatusCode or response.Status
-        if statusCode ~= 200 then return fail("Ошибка сервера: " .. tostring(statusCode), "Попробовать снова") end
-
-        local dOk, data = pcall(function() return HttpService:JSONDecode(response.Body or "") end)
-        if not dOk or type(data) ~= "table" then return fail("Некорректный ответ.", "Попробовать снова") end
-        if not (data.valid and type(data.script) == "string" and data.script ~= "") then return fail(data.message or "Неверный ключ.") end
-
-        saveKey(key); setStatus("Успешно.", C_SUCCESS); closeInstaller()
-        if type(data.seconds_left) == "number" then task.spawn(startCountdownTimer, data.seconds_left, key) end
-        task.wait(0.17)
-        local cOk, compiled = pcall(function() return loadstring(data.script) end)
-        if cOk and type(compiled) == "function" then
-            local rOk, err = pcall(compiled)
-            if not rOk then warn("Script error: " .. tostring(err)) end
-        else warn("Compile error: " .. tostring(compiled)) end
-    end)
-end
-
-button.Activated:Connect(submit)
-input.FocusLost:Connect(function(e) if e then submit() end end)
-
-tween(overlay, T_OPEN, { BackgroundTransparency = 0.45 }); tween(panel, T_OPEN, { GroupTransparency = 0 }); tween(panelScale, T_OPEN, { Scale = 1 }); tween(blur, T_OPEN, { Size = 18 })
+    local dot = create("Frame", { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 14, 0.5, -3), Size = UDim2.fromOffset(8, 8), BackgroundColor3 =
