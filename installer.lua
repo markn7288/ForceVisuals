@@ -5,7 +5,7 @@ local HttpService = game:GetService("HttpService")
 local Lighting = game:GetService("Lighting")
 local Players = game:GetService("Players")
 
-local SERVER_URL = "https://working-languages-plumbing-tablet.trycloudflare.com"
+local SERVER_URL = "https://returning-could-award-plenty.trycloudflare.com"
 local SCRIPT_URL = SERVER_URL .. "/getscript"
 local TIME_CHECK_URL = SERVER_URL .. "/check_time"
 local KEY_FILE = "ForceVisuals_key.txt"
