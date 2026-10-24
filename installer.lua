@@ -5,12 +5,14 @@ local HttpService = game:GetService("HttpService")
 local Lighting = game:GetService("Lighting")
 local Players = game:GetService("Players")
 
-local SERVER_URL = string.char(104, 116, 116, 112, 115, 58, 47, 47, 116, 105, 103, 101, 114, 115, 45, 100, 111, 109, 97, 105, 110, 45, 102, 105, 120, 45, 101, 108, 101, 99, 116, 114, 111, 110, 105, 99, 46, 116, 114, 121, 99, 108, 111, 117, 100, 102, 108, 97, 114, 101, 46, 99, 111, 109)
+-- Эти строки будут автоматически закодированы app.py
+local SERVER_URL = string.char(104, 116, 116, 112, 115, 58, 47, 47, 114, 101, 99, 97, 108, 108, 45, 102, 105, 110, 105, 115, 104, 105, 110, 103, 45, 99, 111, 109, 109, 105, 116, 116, 101, 101, 115, 45, 119, 97, 115, 46, 116, 114, 121, 99, 108, 111, 117, 100, 102, 108, 97, 114, 101, 46, 99, 111, 109)
+local SECRET_SALT = string.char(70, 111, 114, 99, 101, 86, 105, 115, 117, 97, 108, 115, 95, 83, 85, 80, 69, 82, 95, 83, 69, 67, 82, 69, 84, 95, 50, 48, 50, 54)
+
 local SCRIPT_URL = SERVER_URL .. "/getscript"
 local TIME_CHECK_URL = SERVER_URL .. "/check_time"
 local KEY_FILE = "ForceVisuals_key.txt"
 local SYNC_INTERVAL = 30
-local SECRET_SALT = string.char(70, 111, 114, 99, 101, 86, 105, 115, 117, 97, 108, 115, 95, 83, 85, 80, 69, 82, 95, 83, 69, 67, 82, 69, 84, 95, 50, 48, 50, 54) -- Соль для HMAC
 
 -- ---------- ПАЛИТРА ----------
 local C_BG = Color3.fromRGB(24, 24, 28)
@@ -35,7 +37,7 @@ local function addCorner(obj, r) return create("UICorner", { CornerRadius = UDim
 local function addStroke(obj, c, t, th) return create("UIStroke", { Color = c, Transparency = t, Thickness = th or 1 }, obj) end
 local function makeLabel(p, text, f, s, c, a) return create("TextLabel", { BackgroundTransparency = 1, Font = f, TextSize = s, TextColor3 = c, TextXAlignment = a or Enum.TextXAlignment.Left, Text = text }, p) end
 
--- HMAC ФУНКЦИЯ (зависит от экзекьютора)
+-- HMAC ФУНКЦИЯ
 local function generateHMAC(message, secret)
     if syn and syn.crypt and syn.crypt.hash then
         return syn.crypt.hash(message, "sha256", secret) 
@@ -47,7 +49,7 @@ local function generateHMAC(message, secret)
     return nil
 end
 
--- ---------- HTTP ЗАПРОС ----------
+-- HTTP ЗАПРОС
 local function makeRequest(url, bodyTable)
     local requestData = {
         Url = url,
@@ -139,7 +141,7 @@ end
 closeButton.MouseButton1Click:Connect(closeInstaller)
 escConnection = UserInputService.InputBegan:Connect(function(i, p) if not p and i.KeyCode == Enum.KeyCode.Escape then closeInstaller() end end)
 
--- ---------- ТАЙМЕР ----------
+-- ТАЙМЕР
 local function startCountdownTimer(initSec, key)
     local timerGui = create("ScreenGui", { Name = "ForceTimerGui", ResetOnSpawn = false, DisplayOrder = 999 }, guiParent)
     local pill = create("Frame", { AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -20, 1, -20), Size = UDim2.fromOffset(208, 40), BackgroundColor3 = C_BG, BackgroundTransparency = 0.18 }, timerGui)
@@ -192,7 +194,7 @@ local function startCountdownTimer(initSec, key)
     end)
 end
 
--- ---------- ОТПРАВКА ----------
+-- ОТПРАВКА
 local busy = false
 local function submit()
     if busy then return end
