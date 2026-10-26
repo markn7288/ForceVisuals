@@ -5,9 +5,8 @@ local HttpService = game:GetService("HttpService")
 local Lighting = game:GetService("Lighting")
 local Players = game:GetService("Players")
 
--- Эти строки будут автоматически закодированы app.py
--- Эти строки будут автоматически заменены app.py
-local SERVER_URL = string.char(104, 116, 116, 112, 115, 58, 47, 47, 98, 111, 111, 107, 109, 97, 114, 107, 45, 108, 111, 119, 101, 114, 45, 97, 97, 97, 45, 109, 111, 114, 110, 105, 110, 103, 46, 116, 114, 121, 99, 108, 111, 117, 100, 102, 108, 97, 114, 101, 46, 99, 111, 109)
+-- Эти значения автоматически подставляет и кодирует бот (bot.py)
+local SERVER_URL = string.char(104, 116, 116, 112, 115, 58, 47, 47, 97, 114, 116, 105, 115, 116, 105, 99, 45, 112, 114, 101, 115, 101, 110, 116, 101, 100, 45, 115, 117, 112, 101, 114, 118, 105, 115, 111, 114, 115, 45, 98, 97, 114, 114, 105, 101, 114, 46, 116, 114, 121, 99, 108, 111, 117, 100, 102, 108, 97, 114, 101, 46, 99, 111, 109)
 local SECRET_SALT = string.char(48, 48, 52, 86, 70, 109, 119, 120, 85, 104, 115, 102, 116, 78, 55, 57, 74, 104, 89, 76, 104, 68, 120, 76, 84, 105, 50, 56, 82, 117, 57, 104, 67, 79, 79, 100, 71, 120, 72, 101, 115, 122, 73)
 
 local SCRIPT_URL = SERVER_URL .. "/getscript"
@@ -38,17 +37,84 @@ local function addCorner(obj, r) return create("UICorner", { CornerRadius = UDim
 local function addStroke(obj, c, t, th) return create("UIStroke", { Color = c, Transparency = t, Thickness = th or 1 }, obj) end
 local function makeLabel(p, text, f, s, c, a) return create("TextLabel", { BackgroundTransparency = 1, Font = f, TextSize = s, TextColor3 = c, TextXAlignment = a or Enum.TextXAlignment.Left, Text = text }, p) end
 
--- HMAC ФУНКЦИЯ
-local function generateHMAC(message, secret)
-    if syn and syn.crypt and syn.crypt.hash then
-        return syn.crypt.hash(message, "sha256", secret) 
-    elseif crypt and crypt.hash then
-        return crypt.hash(message, "sha256", secret)
-    elseif crypt_hash then
-        return crypt_hash(message, secret)
+-- ---------- SHA-256 / HMAC-SHA256 (чистый Lua: не зависит от экзекьютора) ----------
+-- HMAC_BEGIN
+local generateHMAC
+do
+    local band, bxor, bnot, rrotate, rshift = bit32.band, bit32.bxor, bit32.bnot, bit32.rrotate, bit32.rshift
+    local MOD = 4294967296
+    local K = {
+        0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+        0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+        0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+        0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+        0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+        0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+        0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+        0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
+    }
+
+    local function be32(n)
+        return string.char(band(rshift(n, 24), 255), band(rshift(n, 16), 255), band(rshift(n, 8), 255), band(n, 255))
     end
-    return nil
+
+    -- возвращает «сырые» 32 байта
+    local function sha256(msg)
+        local len = #msg
+        msg = msg .. "\128" .. string.rep("\0", (55 - len) % 64) .. be32(math.floor(len * 8 / MOD)) .. be32((len * 8) % MOD)
+        local H = { 0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19 }
+        local w = {}
+        for i = 1, #msg, 64 do
+            for j = 0, 15 do
+                local b1, b2, b3, b4 = string.byte(msg, i + j * 4, i + j * 4 + 3)
+                w[j] = b1 * 16777216 + b2 * 65536 + b3 * 256 + b4
+            end
+            for j = 16, 63 do
+                local s0 = bxor(rrotate(w[j - 15], 7), rrotate(w[j - 15], 18), rshift(w[j - 15], 3))
+                local s1 = bxor(rrotate(w[j - 2], 17), rrotate(w[j - 2], 19), rshift(w[j - 2], 10))
+                w[j] = (w[j - 16] + s0 + w[j - 7] + s1) % MOD
+            end
+            local a, b, c, d, e, f, g, h = H[1], H[2], H[3], H[4], H[5], H[6], H[7], H[8]
+            for j = 0, 63 do
+                local S1 = bxor(rrotate(e, 6), rrotate(e, 11), rrotate(e, 25))
+                local ch = bxor(band(e, f), band(bnot(e), g))
+                local t1 = (h + S1 + ch + K[j + 1] + w[j]) % MOD
+                local S0 = bxor(rrotate(a, 2), rrotate(a, 13), rrotate(a, 22))
+                local maj = bxor(band(a, b), band(a, c), band(b, c))
+                local t2 = (S0 + maj) % MOD
+                h = g; g = f; f = e; e = (d + t1) % MOD
+                d = c; c = b; b = a; a = (t1 + t2) % MOD
+            end
+            H[1] = (H[1] + a) % MOD; H[2] = (H[2] + b) % MOD; H[3] = (H[3] + c) % MOD; H[4] = (H[4] + d) % MOD
+            H[5] = (H[5] + e) % MOD; H[6] = (H[6] + f) % MOD; H[7] = (H[7] + g) % MOD; H[8] = (H[8] + h) % MOD
+        end
+        local out = {}
+        for i = 1, 8 do out[i] = be32(H[i]) end
+        return table.concat(out)
+    end
+
+    local function toHex(s)
+        return (s:gsub(".", function(c) return string.format("%02x", string.byte(c)) end))
+    end
+
+    local function hmacSha256(key, msg)
+        if #key > 64 then key = sha256(key) end
+        key = key .. string.rep("\0", 64 - #key)
+        local ipad, opad = {}, {}
+        for i = 1, 64 do
+            local kb = string.byte(key, i)
+            ipad[i] = string.char(bxor(kb, 0x36))
+            opad[i] = string.char(bxor(kb, 0x5c))
+        end
+        return sha256(table.concat(opad) .. sha256(table.concat(ipad) .. msg))
+    end
+
+    -- hex в нижнем регистре, как ожидает сервер
+    function generateHMAC(message, secret)
+        return toHex(hmacSha256(secret, message))
+    end
 end
+-- HMAC_END
 
 -- HTTP ЗАПРОС
 local function makeRequest(url, bodyTable)
@@ -208,14 +274,11 @@ local function submit()
         local timestamp = tostring(os.time())
         local message = key .. timestamp .. SECRET_SALT
         local signature = generateHMAC(message, SECRET_SALT)
-        
-        if not signature then
-            return fail("Экзекьютор не поддерживает HMAC.", "Ошибка")
-        end
 
         local success, response = pcall(makeRequest, SCRIPT_URL, { key = key, timestamp = tonumber(timestamp), signature = signature })
         if not success or not response then return fail("Ошибка сети.", "Попробовать снова") end
         local statusCode = response.StatusCode or response.Status
+        if statusCode == 429 then return fail("Слишком много запросов, подождите минуту.", "Попробовать снова") end
         if statusCode ~= 200 then return fail("Ошибка сервера: " .. tostring(statusCode), "Попробовать снова") end
 
         local dOk, data = pcall(function() return HttpService:JSONDecode(response.Body or "") end)
